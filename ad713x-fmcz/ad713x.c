@@ -289,6 +289,128 @@ int32_t ad713x_dig_filter_sel_ch(struct ad713x_dev *dev,
 				    AD713X_REG_CHAN_DIG_FILTER_SEL,
 				    AD713X_DIGFILTER_SEL_CH_MSK(ch),
 				    AD713X_DIGFILTER_SEL_CH_MODE(filter, ch));
+}
+
+/**
+ * Enable/Disable CLKOUT output.
+ *
+ * @param [in] dev - The device structure.
+ * @param [in] enable - true to enable the clkout output;
+ *                      false to disable the clkout output.
+ *
+ * @return 0 in case of success, error code otherwise.
+ */
+int32_t ad713x_clkout_output_en(struct ad713x_dev *dev, bool enable)
+{
+	return ad713x_spi_write_mask(dev,
+			AD713X_REG_DEVICE_CONFIG1,
+			AD713X_DEV_CONFIG1_CLKOUT_EN_MSK,
+			AD713X_DEV_CONFIG1_CLKOUT_EN_MODE(enable));
+}
+
+/**
+ * Enable/Disable reference gain correction.
+ *
+ * @param [in] dev - The device structure.
+ * @param [in] enable - true to enable the reference gain correction;
+ *                      false to disable the reference gain correction.
+ *
+ * @return 0 in case of success, error code otherwise.
+ */
+int32_t ad713x_ref_gain_correction_en(struct ad713x_dev *dev, bool enable)
+{
+	return ad713x_spi_write_mask(dev,
+			AD713X_REG_DEVICE_CONFIG1,
+			AD713X_DEV_CONFIG1_REF_GAIN_CORR_EN_MSK,
+			AD713X_DEV_CONFIG1_REF_GAIN_CORR_EN_MODE(enable));
+}
+
+/**
+ * Select the wideband filter bandwidth for a channel.
+ *
+ * The option is relative to ODR, so it's a fraction of it.
+ *
+ * @param [in] dev - The device structure.
+ * @param [in] ch - Number of the channel to which to set the wideband filter
+ *                  option.
+ * @param [in] wb_opt - Option to set the wideband filter:
+ *                      Values are:
+ *                          0 - bandwidth of 0.443 * ODR;
+ *                          1 - bandwidth of 0.10825 * ODR.
+ *
+ * @return 0 in case of success, error code otherwise.
+ */
+int32_t ad713x_wideband_bw_sel(struct ad713x_dev *dev,
+		enum ad713x_channels ch, uint8_t wb_opt)
+{
+	return ad713x_spi_write_mask(dev,
+			AD713X_REG_FIR_BW_SEL,
+			AD713X_FIR_BW_SEL_CH_MSK(ch),
+			AD713X_FIR_BW_SEL_CH_MODE(wb_opt, ch));
+}
+
+/**
+ * Initialize GPIO driver handlers for the GPIOs in the system.
+ *
+ * ad713x_init() helper function.
+ *
+ * @param [out] dev - AD713X device handler.
+ * @param [in] init_param - Pointer to the initialization structure.
+ *
+ * @return 0 in case of success, error code otherwise.
+ */
+static int32_t ad713x_init_gpio(struct ad713x_dev *dev,
+		struct ad713x_init_param *init_param)
+{
+
+	int32_t ret;
+
+	ret = gpio_get(&dev->gpio_mode1, init_param->gpio_mode1);
+	if(ret != 0)
+		return ret;
+	ret = gpio_get(&dev->gpio_mode2, init_param->gpio_mode2);
+	if(ret != 0)
+		return ret;
+	ret = gpio_get(&dev->gpio_dclkmode, init_param->gpio_dclkmode);
+	if(ret != 0)
+		return ret;
+	ret = gpio_get(&dev->gpio_dclkio1, init_param->gpio_dclkio1);
+	if(ret != 0)
+		return ret;
+	ret = gpio_get(&dev->gpio_dclkio2, init_param->gpio_dclkio2);
+	if(ret != 0)
+		return ret;
+	ret = gpio_get(&dev->gpio_resetn1, init_param->gpio_resetn1);
+	if(ret != 0)
+		return ret;
+	ret = gpio_get(&dev->gpio_resetn2, init_param->gpio_resetn2);
+	if(ret != 0)
+		return ret;
+	ret = gpio_get(&dev->gpio_pnd1, init_param->gpio_pnd1);
+	if(ret != 0)
+		return ret;
+	return gpio_get(&dev->gpio_pnd2, init_param->gpio_pnd2);
+}
+
+/**
+ * Initialize the wideband filter bandwidth for every channel.
+ *
+ * ad713x_init() helper function.
+ *
+ * @param [in] dev - AD713X device handler.
+ *
+ * @return 0 in case of success, error code otherwise.
+ */
+static int32_t ad713x_init_chan_bw(struct ad713x_dev *dev)
+{
+	int8_t i;
+	int32_t ret;
+
+	for(i = CH3; i >= 0; i--) {
+		ret = ad713x_wideband_bw_sel(dev, i, 0);
+		if(ret != 0)
+			break;
+	}
 
 	return ret;
 }
@@ -354,27 +476,32 @@ int32_t ad713x_init(struct ad713x_dev **device,
 	buf[0] = AD713X_REG_DIAGNOSTIC_CONTROL;
 	buf[1] = 0x00;
 	buf[2] = 0x9C;
-	ret |= spi_write_and_read(dev->spi_desc, buf, 3);
 
-	ret |= ad713x_set_power_mode(dev, init_param.power_mode);
-	ret |= ad713x_set_out_data_frame(dev,
-					 init_param.adc_data_len,
-					 init_param.crc_header);
-	ret |= ad713x_dout_format_config(dev,
-					 init_param.format);
-	ret |= ad713x_mag_phase_clk_delay(dev, init_param.clk_delay_en);
+	ret = spi_write_and_read(dev->spi_desc, buf, 3);
+	if(ret != 0)
+		goto error;
 
-	/*
-	 * ODR/MCLK ratio. In master mode where ODR pin is configured as output,
-	 * user can program this register to set the ODR output frequency based on
-	 * MCLK frequency.
-	 */
-	ad713x_spi_reg_write(dev, AD713X_REG_ODR_MCLK_RATIO_MSB, 0x10);
-	/*
-	 * Master slave transfer bit. When this bit is set, data that has been
-	 * entered into the master registers will be transferred to the slave.
-	 */
-	ad713x_spi_reg_write(dev, AD713X_REG_TRANSFER_REGISTER, 0x01);
+	ret = ad713x_set_out_data_frame(dev,
+					 init_param->adc_data_len,
+					 init_param->crc_header);
+	if(ret != 0)
+		goto error;
+	ret = ad713x_dout_format_config(dev,
+					 init_param->format);
+	if(ret != 0)
+		goto error;
+	ret = ad713x_mag_phase_clk_delay(dev, init_param->clk_delay_en);
+	if(ret != 0)
+		goto error;
+	ret = ad713x_clkout_output_en(dev, true);
+	if(ret != 0)
+		goto error;
+	ret = ad713x_ref_gain_correction_en(dev, true);
+	if(ret != 0)
+		goto error;
+	ret = ad713x_init_chan_bw(dev);
+	if(ret != 0)
+		goto error;
 
 	*device = dev;
 

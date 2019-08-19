@@ -753,7 +753,6 @@ struct ad713x_init_param {
 	enum ad713x_supported_dev_ids dev_id;
 	enum ad713x_adc_data_len	adc_data_len;
 	enum ad713x_crc_header	crc_header;
-	enum ad713x_power_mode 	power_mode;
 	enum ad713x_doutx_format	format;
 	bool 			clk_delay_en;
 };
@@ -780,6 +779,10 @@ int32_t ad713x_mag_phase_clk_delay(struct ad713x_dev *dev,
 int32_t ad713x_dig_filter_sel_ch(struct ad713x_dev *dev,
 				 enum ad713x_dig_filter_sel filter,
 				 enum ad713x_channels	ch);
+int32_t ad713x_clkout_output_en(struct ad713x_dev *dev, bool enable);
+int32_t ad713x_ref_gain_correction_en(struct ad713x_dev *dev, bool enable);
+int32_t ad713x_wideband_bw_sel(struct ad713x_dev *dev,
+		enum ad713x_channels ch, uint8_t wb_opt);
 int32_t ad713x_init(struct ad713x_dev **device,
 		    struct ad713x_init_param init_param);
 int32_t ad713x_remove(struct ad713x_dev *dev);

@@ -81,12 +81,10 @@
 #define GPIO_DCLKMODE			GPIO_OFFSET + 49
 
 spi_eng_init_param spi_eng_init_params = {
-	AD7134_SPI_ENGINE_BASEADDR,    // adc_baseaddr
+	AD7134_SPI_ENGINE_BASEADDR,    // spi_baseaddr
 	AD7134_SPI_CS,                 // chip_select
-	0,                             // cs delay
 	SPI_MODE_1,                    // spi_config
 	2000000,                       // spi_clk_hz
-	2000000,                       // spi_clk_hz_reg_access
 	100000000,                     // ref_clk_hz
 	1,                             // spi_offload_rx_support_en
 	AD7134_DMA_BASEADDR,           // spi_offload_rx_dma_baseaddr
@@ -163,7 +161,7 @@ int main()
 
 	ad713x_init(&dev, &ad713x_default_init_param);
 
-	spi_eng_init(&desc, spi_eng_init_params);
+	spi_eng_init(&desc, &spi_eng_init_params);
 
 	ad713x_dig_filter_sel_ch(dev, SINC3, CH0);
 
