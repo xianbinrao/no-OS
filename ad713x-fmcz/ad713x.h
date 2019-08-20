@@ -782,9 +782,9 @@ int32_t ad713x_dig_filter_sel_ch(struct ad713x_dev *dev,
 int32_t ad713x_clkout_output_en(struct ad713x_dev *dev, bool enable);
 int32_t ad713x_ref_gain_correction_en(struct ad713x_dev *dev, bool enable);
 int32_t ad713x_wideband_bw_sel(struct ad713x_dev *dev,
-		enum ad713x_channels ch, uint8_t wb_opt);
+			       enum ad713x_channels ch, uint8_t wb_opt);
 int32_t ad713x_init(struct ad713x_dev **device,
-		    struct ad713x_init_param init_param);
+		    struct ad713x_init_param *init_param);
 int32_t ad713x_remove(struct ad713x_dev *dev);
 #endif /* SRC_AD713X_H_ */
 
